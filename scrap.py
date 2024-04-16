@@ -12,19 +12,33 @@ def scrape_rozetka():
 
     phone_list = []
     for phone in phones:
-
         name = phone.find('span', class_='goods-tile__title').text
         colors = phone.find('span', class_='goods-tile__colors-content').text
-        # ram = phone.find('div', class_='goods-tile__details').find('ul').find_all('li')[0].text
         price = phone.find('span', class_='goods-tile__price-value').text
-        # storage = phone.find('div', class_='goods-tile__details').find('ul').find_all('li')[1].text
+
+        # Split the name into words
+        name_parts = name.split()
+
+        # Initialize storage and color
+        storage = None
+        color = None
+
+        # Iterate over the name parts
+        for i in range(len(name_parts)):
+            # If this part ends with 'GB', it's the storage size
+            if name_parts[i].endswith('GB'):
+                storage = name_parts[i]
+                # The next two parts are assumed to be the color
+                if i + 2 < len(name_parts):
+                    color = name_parts[i + 1] + ' ' + name_parts[i + 2]
+                break
 
         phone_dict = {
             'Name': name,
             'Colors': colors,
-            # 'RAM': ram,
             'Price': price,
-            # 'Storage': storage
+            'Storage': storage,
+            'Color': color
         }
 
         phone_list.append(phone_dict)
