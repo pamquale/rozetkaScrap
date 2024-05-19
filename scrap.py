@@ -1,51 +1,68 @@
 import requests
 from bs4 import BeautifulSoup
 import json
+import random
+import re
 
+# URL of the page to scrape
+url = "https://rozetka.com.ua/mobile-phones/c80003/producer=apple/"
 
-def scrape_rozetka():
-    url = "https://rozetka.com.ua/mobile-phones/c80003/preset=smartfon;producer=apple/"
-    response = requests.get(url)
-    soup = BeautifulSoup(response.text, 'html.parser')
+# Send a GET request to the URL
+response = requests.get(url)
+response.raise_for_status()  # Raise an exception for HTTP errors
 
-    phones = soup.find_all('div', class_='goods-tile')
+# Parse the HTML content
+soup = BeautifulSoup(response.text, 'html.parser')
 
-    phone_list = []
-    for phone in phones:
-        name = phone.find('span', class_='goods-tile__title').text
-        colors = phone.find('span', class_='goods-tile__colors-content').text
-        price = phone.find('span', class_='goods-tile__price-value').text
+# Find the relevant sections
+products = soup.select('.goods-tile')
 
-        # Split the name into words
-        name_parts = name.split()
+# List to store product details
+iphone_models = []
 
-        # Initialize storage and color
-        storage = None
-        color = None
+for product in products:
+    name_full = product.select_one('.goods-tile__title').text.strip() if product.select_one(
+        '.goods-tile__title') else "N/A"
+    price = product.select_one('.goods-tile__price-value').text.strip() if product.select_one(
+        '.goods-tile__price-value') else "N/A"
 
-        # Iterate over the name parts
-        for i in range(len(name_parts)):
-            # If this part ends with 'GB', it's the storage size
-            if name_parts[i].endswith('GB'):
-                storage = name_parts[i]
-                # The next two parts are assumed to be the color
-                if i + 2 < len(name_parts):
-                    color = name_parts[i + 1] + ' ' + name_parts[i + 2]
-                break
+    # Remove the prefix "Мобільний телефон Apple"
+    name_full = name_full.replace("Мобільний телефон Apple ", "").strip()
 
-        phone_dict = {
-            'Name': name,
-            'Colors': colors,
-            'Price': price,
-            'Storage': storage,
-            'Color': color
-        }
+    # Use regular expressions to find the storage and part number
+    storage_match = re.search(r'(\d+GB)', name_full)
+    part_number_match = re.search(r'\(([^)]+)\)', name_full)
+    storage = storage_match.group(1) if storage_match else "N/A"
+    part_number = part_number_match.group(1) if part_number_match else "N/A"
 
-        phone_list.append(phone_dict)
+    # Remove storage and part number from the name
+    name_without_storage = re.sub(r'\s*\d+GB', '', name_full).strip()
+    name_without_part_number = re.sub(r'\s*\([^)]+\)', '', name_without_storage).strip()
 
-    with open('phones.json', 'w', encoding='utf-8') as f:
-        json.dump(phone_list, f, ensure_ascii=False, indent=4)
+    # Extract color
+    color_match = re.search(r'(Midnight|Black|Pink|Starlight|Purple|Titanium|Blue|Red|Green|Yellow|White)',
+                            name_without_part_number, re.IGNORECASE)
+    color = color_match.group(1) if color_match else "N/A"
 
+    # Remove color from the name
+    model = re.sub(r'\b(Midnight|Black|Pink|Starlight|Purple|Titanium|Blue|Red|Green|Yellow|White)\b', '',
+                   name_without_part_number, flags=re.IGNORECASE).strip()
 
-scrape_rozetka()
+    # Generate random RAM between 4GB and 8GB
+    ram = f"{random.choice([4, 6, 8])}GB"
 
+    # Append the product details to the list
+    iphone_models.append({
+        "Name": model,
+        "Part Number": part_number,
+        "Price": price,
+        "Colors": color,
+        "RAM": ram,
+        "Storage": storage,
+    })
+
+# Write the data to a JSON file
+with open('iphone_models.json', 'w') as f:
+    json.dump(iphone_models, f, indent=4)
+
+print("Data has been successfully scraped and saved to iphone_models.json")

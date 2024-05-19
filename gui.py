@@ -1,52 +1,93 @@
-import tkinter as tk
 import json
+from tkinter import *
+from tkinter import ttk
+from tkinter import messagebox
 
-with open('phones.json', 'r', encoding='utf-8') as f:
-    phone_data = json.load(f)
+# Function to load JSON data
+def load_json():
+    with open('iphone_models.json', 'r') as f:
+        return json.load(f)
 
-root = tk.Tk()
-root.title("Phone Data")
+# Function to save JSON data
+def save_json(data):
+    with open('iphone_models.json', 'w') as f:
+        json.dump(data, f, indent=4)
 
-listbox = tk.Listbox(root, width=100)
-listbox.pack()
+# Function to update the treeview with JSON data
+def update_treeview():
+    for item in tree.get_children():
+        tree.delete(item)
+    for i, model in enumerate(data):
+        tree.insert("", "end", iid=i, values=(
+            model["Name"], model["Part Number"], model["Colors"],
+            model["RAM"], model["Price"], model["Storage"]
+        ))
 
-# Create Entry fields for Name, Price, Storage and Color
-name_var = tk.StringVar()
-price_var = tk.StringVar()
-storage_var = tk.StringVar()
-color_var = tk.StringVar()
+# Function to save edits
+def save_edits():
+    selected_item = tree.selection()[0]
+    for i, field in enumerate(fields):
+        data[int(selected_item)][field] = entries[i].get()
+    save_json(data)
+    update_treeview()
+    messagebox.showinfo("Info", "Changes saved successfully")
 
-name_entry = tk.Entry(root, textvariable=name_var, width=50)
-price_entry = tk.Entry(root, textvariable=price_var, width=50)
-storage_entry = tk.Entry(root, textvariable=storage_var, width=50)
-color_entry = tk.Entry(root, textvariable=color_var, width=50)
+# Function to populate entry fields when an item is selected
+def on_item_selected(event):
+    selected_item = tree.selection()[0]
+    model = data[int(selected_item)]
+    for i, field in enumerate(fields):
+        entries[i].delete(0, END)
+        entries[i].insert(0, model[field])
 
-name_entry.pack()
-price_entry.pack()
-storage_entry.pack()
-color_entry.pack()
+# Load JSON data
+data = load_json()
 
+# Create main window
+root = Tk()
+root.title("iPhone Models Editor")
+root.geometry("1000x400")
 
-def update_item():
-    selected = listbox.curselection()
-    if selected:
-        index = selected[0]
-        new_name = name_var.get()
-        new_price = price_var.get()
-        new_storage = storage_var.get()
-        new_color = color_var.get()
-        phone_data[index]['Name'] = new_name
-        phone_data[index]['Price'] = new_price
-        phone_data[index]['Storage'] = new_storage
-        phone_data[index]['Color'] = new_color
-        listbox.delete(index)
-        listbox.insert(index, f"Name: {new_name}, Price: {new_price}, Storage: {new_storage}, Color: {new_color}")
+# Create a treeview widget
+columns = ["Name", "Part Number", "Colors", "RAM", "Price", "Storage"]
+tree = ttk.Treeview(root, columns=columns, show='headings')
 
+for col in columns:
+    tree.heading(col, text=col)
+    tree.column(col, width=150)
 
-update_button = tk.Button(root, text="Update Item", command=update_item)
-update_button.pack()
+tree.pack(fill=BOTH, expand=True)
 
-for phone in phone_data:
-    listbox.insert(tk.END, f"Name: {phone['Name']}, Price: {phone['Price']}, Storage: {phone['Storage']}, Color: {phone['Color']}")
+# Add scrollbar
+scrollbar = Scrollbar(tree, orient="vertical", command=tree.yview)
+tree.configure(yscroll=scrollbar.set)
+scrollbar.pack(side=RIGHT, fill=Y)
 
+# Update treeview with data
+update_treeview()
+
+# Bind the item selection event
+tree.bind('<<TreeviewSelect>>', on_item_selected)
+
+# Create edit section
+edit_frame = Frame(root)
+edit_frame.pack(pady=10)
+
+fields = ["Name", "Part Number", "Colors", "RAM", "Price", "Storage"]
+entries = []
+
+for field in fields:
+    frame = Frame(edit_frame)
+    frame.pack(fill=X, padx=5, pady=5)
+    label = Label(frame, text=field, width=15)
+    label.pack(side=LEFT)
+    entry = Entry(frame)
+    entry.pack(side=RIGHT, fill=X, expand=True)
+    entries.append(entry)
+
+# Create save button
+save_button = Button(root, text="Save Changes", command=save_edits)
+save_button.pack(pady=10)
+
+# Main loop
 root.mainloop()
